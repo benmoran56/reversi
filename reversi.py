@@ -15,6 +15,11 @@ class Board:
         self.window = window
         self.batch = batch
 
+        self.x = 0
+        self.y = 0
+        self.size = 0
+        self.border = 0
+
         self.cells = 8
 
         self.bg_group = pyglet.graphics.Group(order=0)
@@ -27,19 +32,15 @@ class Board:
 
     def create_board(self):
         # Calculate the background
-        border = self.window.height * 0.05
-        size = self.window.height - border * 2
-        x =  self.window.width / 2 - size / 2
-        y = border
         r = 8
-        self.background = RoundedRectangle(x, y, size, size, r, color=self.background_color, group=self.bg_group, batch=self.batch)
+        self.background = RoundedRectangle(self.x, self.y, self.size, self.size, r, color=self.background_color, group=self.bg_group, batch=self.batch)
 
         # Calculate the Cells:
-        gapsize = size * 0.01
-        cellsize = (size - gapsize * 9) / self.cells
-        startx = x + gapsize
-        starty = y + gapsize
-        r = max(2, gapsize)
+        gapsize = self.size * 0.01
+        cellsize = (self.size - gapsize * 9) / self.cells
+        startx = self.x + gapsize
+        starty = self.y + gapsize
+        r = max(2.0, gapsize)
 
         for row in range(self.cells):
             y = starty + row * (cellsize + gapsize)
@@ -60,8 +61,16 @@ class Board:
         self.batch.draw()
 
     def on_resize(self, width, height):
+        self.border = height * 0.05
+        self.size = height - self.border * 2
+        self.x =  self.window.width / 2 - self.size / 2
+        self.y = self.border
+
         self.delete_board()
         self.create_board()
+
+    def on_mouse_motion(self, x, y, dx, dy):
+        print(x, y, "    ", int(x // self.cells), int(y // self.cells))
 
 
 if __name__ == "__main__":
