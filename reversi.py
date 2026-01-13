@@ -10,24 +10,31 @@ class Board:
 
     background_color = (200, 200, 200)
     cell_color = (50, 50, 50)
+    cell_highlight_color = (80, 80, 80)
 
-    def __init__(self, window, batch):
+    def __init__(self, window, batch, num_cells=8):
         self.window = window
         self.batch = batch
+        self.num_cells = num_cells
 
+        # Calculated on resize:
         self.x = 0
         self.y = 0
         self.size = 0
         self.border = 0
-
-        self.cells = 8
+        self.sectorsize = 1
 
         self.bg_group = pyglet.graphics.Group(order=0)
         self.fg_group = pyglet.graphics.Group(order=1)
         self.pc_group = pyglet.graphics.Group(order=2)
+        self.hl_group = pyglet.graphics.Group(order=3)
 
+        # Shapes:
         self.background = None
         self.cell_shapes = []
+        self.cell_map = {}
+        self.selected_cell = None
+
         self.create_board()
 
     def create_board(self):
@@ -37,17 +44,19 @@ class Board:
 
         # Calculate the Cells:
         gapsize = self.size * 0.01
-        cellsize = (self.size - gapsize * 9) / self.cells
+        cellsize = (self.size - gapsize * (self.num_cells + 1)) / self.num_cells
         startx = self.x + gapsize
         starty = self.y + gapsize
         r = max(2.0, gapsize)
 
-        for row in range(self.cells):
+        for row in range(self.num_cells):
             y = starty + row * (cellsize + gapsize)
-            for column in range(self.cells):
+            for column in range(self.num_cells):
                 x = startx + column * (cellsize + gapsize)
-                self.cell_shapes.append(RoundedRectangle(x, y, cellsize, cellsize, r,
-                                                         color=self.cell_color, group=self.fg_group, batch=self.batch))
+                cell = RoundedRectangle(x, y, cellsize, cellsize, r,
+                                        color=self.cell_color, group=self.fg_group, batch=self.batch)
+                self.cell_map[(column, row)] = cell
+                self.cell_shapes.append(cell)
 
     def delete_board(self):
         for shape in self.cell_shapes:
@@ -55,6 +64,23 @@ class Board:
         self.cell_shapes.clear()
         self.background.delete()
         self.background = None
+        self.selected_cell = None
+
+    def _handle_mouse_motion(self, x, y):
+        if self.x < x < self.x + self.size and self.y < y < self.y + self.size:
+            # spatial hash to find the cell from the x,y coordinates of the mouse:
+            cellx, celly = int((x - self.x) / self.sectorsize), int((y - self.y) / self.sectorsize)
+            cell = self.cell_map.get((cellx, celly))
+
+            if self.selected_cell:
+                self.selected_cell.color = self.cell_color
+
+            cell.color = self.cell_highlight_color
+            self.selected_cell = cell
+            return
+
+        if self.selected_cell:
+            self.selected_cell.color = self.cell_color
 
     def on_draw(self):
         self.window.clear()
@@ -65,12 +91,16 @@ class Board:
         self.size = height - self.border * 2
         self.x =  self.window.width / 2 - self.size / 2
         self.y = self.border
+        self.sectorsize = self.size / self.num_cells
 
         self.delete_board()
         self.create_board()
 
     def on_mouse_motion(self, x, y, dx, dy):
-        print(x, y, "    ", int(x // self.cells), int(y // self.cells))
+        self._handle_mouse_motion(x, y)
+
+    def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
+        self._handle_mouse_motion(x, y)
 
 
 if __name__ == "__main__":
