@@ -11,6 +11,8 @@ class Board:
     background_color = (200, 200, 200)
     cell_color = (50, 50, 50)
     cell_highlight_color = (80, 80, 80)
+    white = (255, 255, 255)
+    black = (0, 0, 0)
 
     def __init__(self, window, batch, num_cells=8):
         self.window = window
@@ -32,8 +34,13 @@ class Board:
         # Shapes:
         self.background = None
         self.cell_shapes = []
+        self.piece_shapes = []
         self.cell_map = {}
+        self.piece_map = {}
         self.selected_cell = None
+
+        self.current_color = self.white
+        self.color_map = {}
 
         self.create_board()
 
@@ -58,19 +65,37 @@ class Board:
                 self.cell_map[(column, row)] = cell
                 self.cell_shapes.append(cell)
 
+        # Calculate the Pieces:
+        sectorsize = self.sectorsize
+        radius = sectorsize / 3
+        for column, row in self.piece_map.keys():
+            x = self.x + (column * sectorsize + sectorsize / 2)
+            y = self.y + (row * sectorsize + sectorsize / 2)
+            circle = pyglet.shapes.Circle(x, y, radius, color=self.current_color, group=self.pc_group, batch=self.batch)
+            self.piece_map[(column, row)] = circle
+
+
     def delete_board(self):
-        for shape in self.cell_shapes:
+        for shape in self.cell_shapes + self.piece_shapes:
             shape.delete()
         self.cell_shapes.clear()
+        self.piece_shapes.clear()
         self.background.delete()
         self.background = None
         self.selected_cell = None
 
+    def _in_bounds(self, x, y) -> bool:
+        """Check if the mouse is within the board area."""
+        return self.x < x < self.x + self.size and self.y < y < self.y + self.size
+
+    def _get_sector(self, x, y):
+        """Spatial hash to find the sector id from the x,y coordinates of the mouse."""
+        return int((x - self.x) / self.sectorsize), int((y - self.y) / self.sectorsize)
+
     def _handle_mouse_motion(self, x, y):
-        if self.x < x < self.x + self.size and self.y < y < self.y + self.size:
-            # spatial hash to find the cell from the x,y coordinates of the mouse:
-            cellx, celly = int((x - self.x) / self.sectorsize), int((y - self.y) / self.sectorsize)
-            cell = self.cell_map.get((cellx, celly))
+        if self._in_bounds(x, y):
+            column, row = self._get_sector(x, y)
+            cell = self.cell_map.get((column, row))
 
             if self.selected_cell:
                 self.selected_cell.color = self.cell_color
@@ -102,6 +127,21 @@ class Board:
     def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
         self._handle_mouse_motion(x, y)
 
+    def on_mouse_press(self, x, y, mouse, modifiers):
+        if not self._in_bounds(x, y):
+            return
+
+        column, row = self._get_sector(x, y)
+        sectorsize = self.sectorsize
+        radius = sectorsize / 3
+        x = self.x + (column * sectorsize + sectorsize / 2)
+        y = self.y + (row * sectorsize + sectorsize / 2)
+        circle = pyglet.shapes.Circle(x, y, radius, color=self.current_color, group=self.pc_group, batch=self.batch)
+        self.piece_map[(column, row)] = circle
+        self.color_map[(column, row)] = self.current_color
+
+        # TODO: handle player changeover, move checking, etc.
+        self.current_color = {self.white: self.black, self.black: self.white}[self.current_color]
 
 if __name__ == "__main__":
     board = Board(window=window, batch=batch)
