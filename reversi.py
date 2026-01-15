@@ -1,9 +1,22 @@
+import random
+
 import pyglet
 
 from pyglet.shapes import RoundedRectangle
 
+
+pyglet.resource.path = ['game/resources/']
+pyglet.resource.reindex()
+
 window = pyglet.window.Window(resizable=True)
 batch = pyglet.graphics.Batch()
+
+
+def load_centered_texture(name):
+    texture = pyglet.resource.texture(name)
+    texture.anchor_x = texture.width / 2
+    texture.anchor_y = texture.height / 2
+    return texture
 
 
 class Board:
@@ -13,6 +26,9 @@ class Board:
     cell_highlight_color = (80, 80, 80)
     white = (255, 255, 255)
     black = (0, 0, 0)
+
+    white_faces = ('white1.png', 'white2.png', 'white3.png', 'white4.png', 'white5.png',
+                  'white6.png', 'white7.png', 'white8.png', 'white9.png', 'white10.png')
 
     def __init__(self, window, batch, num_cells=8):
         self.window = window
@@ -35,8 +51,10 @@ class Board:
         self.background = None
         self.cell_shapes = []
         self.piece_shapes = []
+        self.face_sprites = []
         self.cell_map = {}
         self.piece_map = {}
+        self.face_map = {}
         self.selected_cell = None
 
         self.current_color = self.white
@@ -71,15 +89,21 @@ class Board:
         for column, row in self.piece_map.keys():
             x = self.x + (column * sectorsize + sectorsize / 2)
             y = self.y + (row * sectorsize + sectorsize / 2)
-            circle = pyglet.shapes.Circle(x, y, radius, color=self.current_color, group=self.pc_group, batch=self.batch)
+            color = self.color_map[(column, row)]
+            circle = pyglet.shapes.Circle(x, y, radius, color=color, group=self.pc_group, batch=self.batch)
             self.piece_map[(column, row)] = circle
 
+            texture = load_centered_texture(name=random.choice(self.white_faces))
+            face = pyglet.sprite.Sprite(texture, x, y, group=self.pc_group, batch=self.batch)
+            face.scale = sectorsize / texture.height * 0.8
+            self.face_map[(column, row)] = face
 
     def delete_board(self):
-        for shape in self.cell_shapes + self.piece_shapes:
-            shape.delete()
+        for item in self.cell_shapes + self.piece_shapes + self.face_sprites:
+            item.delete()
         self.cell_shapes.clear()
         self.piece_shapes.clear()
+        self.face_sprites.clear()
         self.background.delete()
         self.background = None
         self.selected_cell = None
@@ -137,6 +161,12 @@ class Board:
         x = self.x + (column * sectorsize + sectorsize / 2)
         y = self.y + (row * sectorsize + sectorsize / 2)
         circle = pyglet.shapes.Circle(x, y, radius, color=self.current_color, group=self.pc_group, batch=self.batch)
+
+        texture = load_centered_texture(name=random.choice(self.white_faces))
+        face = pyglet.sprite.Sprite(texture, x, y, group=self.pc_group, batch = self.batch)
+        face.scale = self.sectorsize / texture.height * 0.8
+
+        self.face_map[(column, row)] = face
         self.piece_map[(column, row)] = circle
         self.color_map[(column, row)] = self.current_color
 
